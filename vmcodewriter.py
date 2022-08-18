@@ -324,6 +324,83 @@ class CodeWriter:
             self.__gen_code_for_not__()
         return
 
+    def __gen_code_for_function_declare__(self, functionName, nVars):
+        self.__write__("({0})".format(functionName))
+        self.__write__("@SP")
+        self.__write__("A=M")
+        for i in range(int(nVars)):
+            self.__write__("M=0")
+            self.__write__("A=A+1")
+
+        # Index SP
+        self.__write__("D=A")
+        self.__write__("@SP")
+        self.__write__("M=D")
+        return
+
+    def __gen_code_for_push_data_from_D__(self):
+        self.__write__("@SP")
+        self.__write__("A=M")
+        self.__write__("M=D")
+        self.__increase_stack_pointer__()
+        return
+
+    def __gen_code_for_function_call__(self, functionName, nArgs, c_index):
+        # Save return address
+        self.__write__("// Call function {}".format(functionName))
+        self.__write__("({0}.ret{1})".format(self.file_name, c_index))
+        self.__write__("@{0}.ret{1}".format(self.file_name, c_index))
+        self.__write__("D=A")
+        self.__gen_code_for_push_data_from_D__()
+        
+        # Save LCL
+        self.__write__("@LCL")
+        self.__write__("D=M")
+        self.__gen_code_for_push_data_from_D__()
+        
+        # Save ARG
+        self.__write__("@ARG")
+        self.__write__("D=M")
+        self.__gen_code_for_push_data_from_D__()
+        
+        # Save THIS
+        self.__write__("@THIS")
+        self.__write__("D=M")
+        self.__gen_code_for_push_data_from_D__()
+        
+        # Save THAT
+        self.__write__("@THAT")
+        self.__write__("D=M")
+        self.__gen_code_for_push_data_from_D__()
+
+        # Index ARG
+        self.__write__("// Index ARG")
+        self.__write__("@SP")
+        self.__write__("D=M")
+        self.__write__("@{0}".format(int(nArgs) + 5))
+        self.__write__("D=D-A")
+        self.__write__("@ARG")
+        self.__write__("M=D")
+
+        # Index LCL
+        self.__write__("// Index LCL")
+        self.__write__("@SP")
+        self.__write__("D=M")
+        self.__write__("@LCL")
+        self.__write__("M=D")
+        return
+
+    def __gen_code_for_return__(self):
+        return
+
+    def __write_function_command__(self, command: Command):
+        args = command.get_args()
+        if args[0] == "function":
+            self.__gen_code_for_function_declare__(args[1], args[2])
+        if args[0] == "call":
+            self.__gen_code_for_function_call__(args[1], args[2], command.get_c_index())
+        return
+
     def write_command(self, command: Command):
         print("Write command: " , command)
         type = command.get_type()
@@ -335,6 +412,8 @@ class CodeWriter:
             self.__write_pop_command__(command)
         elif type == CommandType.C_BRANCHING:
             self.__write_branching_command__(command)
+        elif type == CommandType.C_FUNCTION:
+            self.__write_function_command__(command)
         return
 
     def finish(self):
