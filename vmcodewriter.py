@@ -149,11 +149,11 @@ class CodeWriter:
         return
 
     def __gen_code_for_label_command__(self, label):
-        self.__write__("({0})".format(label))
+        self.__write__("({0}{1})".format(self.file_name, label))
         return
 
     def __gen_code_for_goto_command__(self, label):
-        self.__write__("@{0}".format(label))
+        self.__write__("@{0}{1}".format(self.file_name, label))
         self.__write__("0;JMP")
         return
 
@@ -162,8 +162,8 @@ class CodeWriter:
         self.__write__("@SP")
         self.__write__("A=M")
         self.__write__("D=M")
-        self.__write__("@{0}".format(label))
-        self.__write__("D;JGT")
+        self.__write__("@{0}{1}".format(self.file_name, label))
+        self.__write__("D;JNE")
         return
 
     def __write_branching_command__(self, command: Command):
@@ -325,13 +325,12 @@ class CodeWriter:
         return
 
     def __gen_code_for_function_declare__(self, functionName, nVars):
-        self.__write__("({0})".format(functionName))
+        self.__write__("({0})".format(functionName))        
         self.__write__("@SP")
         self.__write__("A=M")
         for i in range(int(nVars)):
             self.__write__("M=0")
             self.__write__("A=A+1")
-
         # Index SP
         self.__write__("D=A")
         self.__write__("@SP")
@@ -348,27 +347,30 @@ class CodeWriter:
     def __gen_code_for_function_call__(self, functionName, nArgs, c_index):
         # Save return address
         self.__write__("// Call function {}".format(functionName))
-        self.__write__("({0}.ret{1})".format(self.file_name, c_index))
         self.__write__("@{0}.ret{1}".format(self.file_name, c_index))
         self.__write__("D=A")
         self.__gen_code_for_push_data_from_D__()
         
         # Save LCL
+        self.__write__("// SAVE LCL")
         self.__write__("@LCL")
         self.__write__("D=M")
         self.__gen_code_for_push_data_from_D__()
         
         # Save ARG
+        self.__write__("// SAVE ARG")
         self.__write__("@ARG")
         self.__write__("D=M")
         self.__gen_code_for_push_data_from_D__()
         
         # Save THIS
+        self.__write__("// SAVE THIS")
         self.__write__("@THIS")
         self.__write__("D=M")
         self.__gen_code_for_push_data_from_D__()
         
         # Save THAT
+        self.__write__("// Save THAT")
         self.__write__("@THAT")
         self.__write__("D=M")
         self.__gen_code_for_push_data_from_D__()
@@ -388,9 +390,87 @@ class CodeWriter:
         self.__write__("D=M")
         self.__write__("@LCL")
         self.__write__("M=D")
+
+        # JUMP
+        self.__write__("@{0}".format(functionName))
+        self.__write__("0;JMP")
+
+        # Return point
+        self.__write__("({0}.ret{1})".format(self.file_name, c_index))
         return
 
     def __gen_code_for_return__(self):
+        # Index endframe
+        self.__write__("// Restore endframe")
+        self.__write__("@LCL")
+        self.__write__("D=M")
+        self.__write__("@R13")
+        self.__write__("M=D")
+
+        # Return address
+        self.__write__("@5")
+        self.__write__("A=D-A")
+        self.__write__("D=M")
+        self.__write__("@R14")
+        self.__write__("M=D")
+
+        # Return value
+        self.__write__("// Restore value")
+        self.__write__("@SP")
+        self.__write__("A=M-1")
+        self.__write__("D=M")
+        self.__write__("@ARG")
+        self.__write__("A=M")
+        self.__write__("M=D")
+
+        # Restore SP
+        self.__write__("// Restore sp")
+        self.__write__("D=A+1")
+        self.__write__("@SP")
+        self.__write__("M=D")
+
+        # Restore THAT
+        self.__write__("// Restore that")
+        self.__write__("@R13")
+        self.__write__("M=M-1")
+        self.__write__("A=M")
+        self.__write__("D=M")
+        self.__write__("@THAT")
+        self.__write__("M=D")
+
+        # Restore THIS
+        self.__write__("// Restore this")
+        self.__write__("@R13")
+        self.__write__("M=M-1")
+        self.__write__("A=M")
+        self.__write__("D=M")
+        self.__write__("@THIS")
+        self.__write__("M=D")
+
+        # Restore ARG
+        self.__write__("// Restore arg")
+        self.__write__("@R13")
+        self.__write__("M=M-1")
+        self.__write__("A=M")
+        self.__write__("D=M")
+        self.__write__("@ARG")
+        self.__write__("M=D")
+
+        # Restore LCL
+        self.__write__("// Restore lcl")
+        self.__write__("@R13")
+        self.__write__("M=M-1")
+        self.__write__("A=M")
+        self.__write__("D=M")
+        self.__write__("@LCL")
+        self.__write__("M=D")
+
+        # JUMP Back
+        self.__write__("// JMP back")
+        self.__write__("@R14")
+        self.__write__("A=M")
+        self.__write__("0;JMP")
+
         return
 
     def __write_function_command__(self, command: Command):
@@ -399,20 +479,26 @@ class CodeWriter:
             self.__gen_code_for_function_declare__(args[1], args[2])
         if args[0] == "call":
             self.__gen_code_for_function_call__(args[1], args[2], command.get_c_index())
+        if args[0] == "return":
+            self.__gen_code_for_return__()
         return
 
     def write_command(self, command: Command):
-        print("Write command: " , command)
         type = command.get_type()
         if type == CommandType.C_ARITHMETIC:
+            # self.__write__("// [CMD]: {}".format(command))
             self.__write_arithmetic_command__(command)
         elif type == CommandType.C_PUSH:
+            # self.__write__("// [CMD]: {}".format(command))
             self.__write_push_command__(command)
         elif type == CommandType.C_POP:
+            # self.__write__("// [CMD]: {}".format(command))
             self.__write_pop_command__(command)
         elif type == CommandType.C_BRANCHING:
+            # self.__write__("// [CMD]: {}".format(command))
             self.__write_branching_command__(command)
         elif type == CommandType.C_FUNCTION:
+            # self.__write__("// [CMD]: {}".format(command))
             self.__write_function_command__(command)
         return
 

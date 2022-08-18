@@ -1,5 +1,4 @@
 from calendar import leapdays
-from distutils import command
 
 from vmcommand import Command, CommandType
 
