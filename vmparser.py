@@ -4,7 +4,7 @@ from vmcommand import Command, CommandType
 
 
 class Parser:
-
+    branching_ops = {"label", "goto", "if-goto"}
     arithmetic_ops = {"add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"}
     pop_ops = {"pop"}
     push_ops = {"push"}
@@ -36,6 +36,9 @@ class Parser:
         elif lexicons[0] in Parser.push_ops:
             command.set_type(CommandType.C_PUSH)
             command.set_args(lexicons[1:])
+        elif lexicons[0] in Parser.branching_ops:
+            command.set_type(CommandType.C_BRANCHING)
+            command.set_args(lexicons)
         return command
 
     def finish(self):

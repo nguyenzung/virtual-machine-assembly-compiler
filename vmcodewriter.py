@@ -148,6 +148,34 @@ class CodeWriter:
             self.__gen_code_for_pop_temp__(args[1])
         return
 
+    def __gen_code_for_label_command__(self, label):
+        self.__write__("({0})".format(label))
+        return
+
+    def __gen_code_for_goto_command__(self, label):
+        self.__write__("@{0}".format(label))
+        self.__write__("0;JMP")
+        return
+
+    def __gen_code_for_if_goto_command__(self, label):
+        self.__decrease_stack_pointer__()
+        self.__write__("@SP")
+        self.__write__("A=M")
+        self.__write__("D=M")
+        self.__write__("@{0}".format(label))
+        self.__write__("D;JGT")
+        return
+
+    def __write_branching_command__(self, command: Command):
+        args = command.get_args()
+        if args[0] == "label":
+            self.__gen_code_for_label_command__(args[1])
+        if args[0] == "goto":
+            self.__gen_code_for_goto_command__(args[1])
+        if args[0] == "if-goto":
+            self.__gen_code_for_if_goto_command__(args[1])
+        return
+
     def __gen_code_for_and__(self):
         self.__write__("@SP")
         self.__write__("A=M-1")
@@ -305,6 +333,8 @@ class CodeWriter:
             self.__write_push_command__(command)
         elif type == CommandType.C_POP:
             self.__write_pop_command__(command)
+        elif type == CommandType.C_BRANCHING:
+            self.__write_branching_command__(command)
         return
 
     def finish(self):

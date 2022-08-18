@@ -6,11 +6,13 @@ class CommandType(Enum):
     C_PUSH=0,
     C_POP=1,
     C_ARITHMETIC=2,
-    UNKNOWN=3
+    C_BRANCHING = 3,
+    C_FUNCTION=4,
+    c_UNKNOWN=5
 
 
 class Command:
-    type = CommandType.UNKNOWN
+    type = CommandType.c_UNKNOWN
     args = []
     c_index = 0
 
